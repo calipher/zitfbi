@@ -1,0 +1,8 @@
+{
+  "name": "ZITF Business Intelligence",
+  "description": "ZITF Business Intelligence platform for Zimbabwe International Trade Fair, turning exhibition, visitor, commercial, trade impact, operational, and market data into strategic decisions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

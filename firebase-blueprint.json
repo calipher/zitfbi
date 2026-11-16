@@ -1,0 +1,811 @@
+{
+  "entities": {
+    "UserPrivateProfile": {
+      "title": "UserPrivateProfile",
+      "description": "Private Google user account profile isolated per authenticated UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Verified Google account email",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User full name",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "department": {
+          "type": "string",
+          "description": "ZITF institutional department",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last update timestamp"
+        }
+      },
+      "required": ["uid", "email", "displayName", "department", "createdAt", "updatedAt"]
+    },
+    "AdminRegistryEntry": {
+      "title": "AdminRegistryEntry",
+      "description": "Authoritative admin membership document keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "assignedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "assignedAt"]
+    },
+    "WarehouseSnapshot": {
+      "title": "WarehouseSnapshot",
+      "description": "Synchronized ZITF BI edition summary and executive telemetry snapshot stored in Cloud Firestore.",
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "editionId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64
+        },
+        "editionLabel": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Synced", "Archived"]
+        },
+        "totalExhibitors": { "type": "number" },
+        "totalVisitors": { "type": "number" },
+        "totalRevenueUsd": { "type": "number" },
+        "verifiedDealsUsd": { "type": "number" },
+        "spaceOccupancyPct": { "type": "number" },
+        "notes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "snapshotId",
+        "ownerUid",
+        "ownerEmail",
+        "editionId",
+        "editionLabel",
+        "status",
+        "totalExhibitors",
+        "totalVisitors",
+        "totalRevenueUsd",
+        "verifiedDealsUsd",
+        "spaceOccupancyPct",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SyncedBIReport": {
+      "title": "SyncedBIReport",
+      "description": "Executive BI report brief synchronized to Cloud Firestore under a parent snapshot.",
+      "type": "object",
+      "properties": {
+        "reportId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "snapshotId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "pillar": {
+          "type": "string",
+          "enum": ["Executive", "Exhibitor", "Visitor", "Commercial", "Trade Impact", "Operational", "Market Insight"]
+        },
+        "summaryFindings": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 2000
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reportId", "snapshotId", "ownerUid", "title", "pillar", "summaryFindings", "createdAt", "updatedAt"]
+    },
+    "ZitfEdition": {
+      "title": "ZitfEdition",
+      "description": "Annual ZITF Exhibition cycle configuration.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "editionNumber": { "type": "number" },
+        "theme": { "type": "string", "maxLength": 240 },
+        "year": { "type": "number" },
+        "startDate": { "type": "string", "maxLength": 32 },
+        "endDate": { "type": "string", "maxLength": 32 },
+        "venue": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["Upcoming", "Active", "Concluded"] },
+        "isCurrent": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "name", "editionNumber", "theme", "year", "startDate", "endDate", "venue", "status", "isCurrent", "createdAt", "updatedAt"]
+    },
+    "ExhibitorRecord": {
+      "title": "ExhibitorRecord",
+      "description": "Pillar 1 Exhibitor profile and pavilion stand allocation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "companyName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "regNumber": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "businessDescription": { "type": "string", "maxLength": 1000 },
+        "industry": { "type": "string", "maxLength": 120 },
+        "sector": { "type": "string", "maxLength": 120 },
+        "country": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "provinceCity": { "type": "string", "maxLength": 120 },
+        "contactPerson": { "type": "string", "maxLength": 140 },
+        "email": { "type": "string", "maxLength": 160 },
+        "phone": { "type": "string", "maxLength": 64 },
+        "website": { "type": "string", "maxLength": 200 },
+        "productsServices": { "type": "array", "description": "Up to 25 product or service tags" },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "hallStand": { "type": "string", "maxLength": 100 },
+        "standSizeSqm": { "type": "number" },
+        "category": {
+          "type": "string",
+          "enum": ["Local Commercial", "International Pavilion", "State Owned Enterprise", "SME / Emerging", "Education & Research", "Tech & Innovation"]
+        },
+        "registrationDate": { "type": "string", "maxLength": 32 },
+        "bookingStatus": { "type": "string", "enum": ["Confirmed", "Reserved", "Waitlisted", "Cancelled"] },
+        "paymentStatus": { "type": "string", "enum": ["Fully Paid", "Partially Paid", "Pending"] },
+        "returningStatus": { "type": "string", "enum": ["New", "Returning"] },
+        "satisfactionScore": { "type": "number" },
+        "participationHistory": { "type": "array", "description": "Up to 20 past exhibition years" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "ownerUid", "companyName", "regNumber", "businessDescription", "industry", "sector",
+        "country", "provinceCity", "contactPerson", "email", "phone", "website", "productsServices",
+        "editionId", "hallStand", "standSizeSqm", "category", "registrationDate", "bookingStatus",
+        "paymentStatus", "returningStatus", "satisfactionScore", "participationHistory", "isDemo",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "VisitorRecord": {
+      "title": "VisitorRecord",
+      "description": "Pillar 2 Registered trade & public visitor telemetry record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "visitorRef": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "category": {
+          "type": "string",
+          "enum": ["Business Visitors", "General Public", "Students", "Government Representatives", "International Delegates", "Investors", "Buyers and Procurement", "Media Representatives"]
+        },
+        "country": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "cityProvince": { "type": "string", "maxLength": 120 },
+        "organization": { "type": "string", "maxLength": 200 },
+        "industry": { "type": "string", "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 160 },
+        "phone": { "type": "string", "maxLength": 64 },
+        "registrationDate": { "type": "string", "maxLength": 32 },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "attendanceDays": { "type": "array", "description": "Up to 10 attendance day tags" },
+        "interests": { "type": "array", "description": "Up to 20 sector interest tags" },
+        "areasVisited": { "type": "array", "description": "Up to 20 hall/zone tags" },
+        "feedbackRating": { "type": "number" },
+        "repeatVisitor": { "type": "boolean" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "ownerUid", "visitorRef", "fullName", "category", "country", "cityProvince",
+        "organization", "industry", "email", "phone", "registrationDate", "editionId",
+        "attendanceDays", "interests", "areasVisited", "feedbackRating", "repeatVisitor",
+        "isDemo", "createdAt", "updatedAt"
+      ]
+    },
+    "CommercialTransactionRecord": {
+      "title": "CommercialTransactionRecord",
+      "description": "Pillar 3 Commercial space sales, sponsorship, and auxiliary billing ledger.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "refNumber": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "type": {
+          "type": "string",
+          "enum": ["Exhibition Hall Space", "Sponsorship Agreement", "Advertising & Signage", "Conference & Forum Pass", "Commercial Services", "Logistics & Utilities"]
+        },
+        "clientName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "exhibitorId": { "type": "string", "maxLength": 128 },
+        "amountUsd": { "type": "number" },
+        "outstandingBalanceUsd": { "type": "number" },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "status": { "type": "string", "enum": ["Fully Paid", "Deposit Paid", "Invoice Sent", "Overdue"] },
+        "paymentDate": { "type": "string", "maxLength": 32 },
+        "sector": { "type": "string", "maxLength": 120 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "ownerUid", "refNumber", "type", "clientName", "amountUsd", "outstandingBalanceUsd",
+        "editionId", "status", "paymentDate", "sector", "notes", "isDemo", "createdAt", "updatedAt"
+      ]
+    },
+    "TradeEngagementRecord": {
+      "title": "TradeEngagementRecord",
+      "description": "Pillar 4 B2B matchmaking, export deal pipeline, and verified trade outcome.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "refNumber": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "date": { "type": "string", "maxLength": 32 },
+        "buyerOrg": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "buyerCountry": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "supplierOrg": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "supplierCountry": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "industry": { "type": "string", "maxLength": 120 },
+        "opportunityType": {
+          "type": "string",
+          "enum": ["Export Opportunity", "Import Opportunity", "Joint Venture / Partnership", "Distribution Agreement", "Supply Contract", "Investment Enquiry", "Technology Transfer"]
+        },
+        "description": { "type": "string", "maxLength": 1000 },
+        "estimatedValueUsd": { "type": "number" },
+        "engagementStatus": {
+          "type": "string",
+          "enum": ["New", "Contact Established", "Meeting Scheduled", "Meeting Completed", "Follow-up Required", "Negotiation Ongoing", "Opportunity Converted", "Closed / Unsuccessful"]
+        },
+        "followUpDate": { "type": "string", "maxLength": 32 },
+        "outcome": { "type": "string", "maxLength": 500 },
+        "verificationStatus": { "type": "string", "enum": ["Facilitated Opportunity", "Reported by Participant", "Independently Verified"] },
+        "verifiedDate": { "type": "string", "maxLength": 32 },
+        "supportingDocName": { "type": "string", "maxLength": 200 },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "ownerUid", "refNumber", "editionId", "date", "buyerOrg", "buyerCountry",
+        "supplierOrg", "supplierCountry", "industry", "opportunityType", "description",
+        "estimatedValueUsd", "engagementStatus", "followUpDate", "outcome", "verificationStatus",
+        "isDemo", "createdAt", "updatedAt"
+      ]
+    },
+    "HallUtilisationRecord": {
+      "title": "HallUtilisationRecord",
+      "description": "Pillar 5 Exhibition hall capacity, Wi-Fi uptime, and active stand telemetry.",
+      "type": "object",
+      "properties": {
+        "hallId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "hallName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "totalCapacitySqm": { "type": "number" },
+        "occupiedSqm": { "type": "number" },
+        "utilizationRatePct": { "type": "number" },
+        "primarySector": { "type": "string", "maxLength": 120 },
+        "wifiUptimePct": { "type": "number" },
+        "activeExhibitorsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "hallId", "ownerUid", "hallName", "totalCapacitySqm", "occupiedSqm", "utilizationRatePct",
+        "primarySector", "wifiUptimePct", "activeExhibitorsCount", "createdAt", "updatedAt"
+      ]
+    },
+    "OperationalIncidentRecord": {
+      "title": "OperationalIncidentRecord",
+      "description": "Pillar 5 Operational incident ticket logged across exhibition halls.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "refNumber": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "hallOrArea": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "category": { "type": "string", "enum": ["ICT & Network", "Electrical & Power", "Facilities & HVAC", "Logistics & Transport", "Security & Safety", "Customer Care"] },
+        "severity": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"] },
+        "title": { "type": "string", "minLength": 2, "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "reportedTime": { "type": "string", "maxLength": 40 },
+        "resolvedTime": { "type": "string", "maxLength": 40 },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Resolved"] },
+        "resolutionNotes": { "type": "string", "maxLength": 600 },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "ownerUid", "refNumber", "editionId", "hallOrArea", "category", "severity",
+        "title", "description", "reportedTime", "status", "isDemo", "createdAt", "updatedAt"
+      ]
+    },
+    "MarketInsightRecord": {
+      "title": "MarketInsightRecord",
+      "description": "Pillar 6 Strategic market intelligence brief and sector outlook.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 220 },
+        "sector": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "marketType": { "type": "string", "enum": ["Emerging Sector", "Export Potential", "Investment Opportunity", "SME Growth", "Technology Trend", "Trade Corridor"] },
+        "summary": { "type": "string", "maxLength": 1500 },
+        "keyIndicators": { "type": "array", "description": "Up to 15 indicator strings" },
+        "estimatedMarketValueUsd": { "type": "number" },
+        "growthRateYoY": { "type": "number" },
+        "zimbabweMarketContext": { "type": "string", "maxLength": 1000 },
+        "sourceAttribution": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 32 },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "ownerUid", "title", "sector", "marketType", "summary", "keyIndicators",
+        "estimatedMarketValueUsd", "growthRateYoY", "zimbabweMarketContext", "sourceAttribution",
+        "date", "isDemo", "createdAt", "updatedAt"
+      ]
+    },
+    "BIReportRecord": {
+      "title": "BIReportRecord",
+      "description": "Published or scheduled Business Intelligence executive report.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "reportNumber": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 220 },
+        "pillar": { "type": "string", "enum": ["Executive", "Exhibitor", "Visitor", "Commercial", "Trade Impact", "Operational", "Market Insight"] },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "generationDate": { "type": "string", "maxLength": 40 },
+        "author": { "type": "string", "maxLength": 140 },
+        "confidentiality": { "type": "string", "enum": ["Confidential - Board & Executive", "Management Internal", "Public Trade Release"] },
+        "summaryFindings": { "type": "string", "maxLength": 3000 },
+        "kpis": { "type": "array", "description": "Up to 12 KPI summary objects" },
+        "recommendations": { "type": "array", "description": "Up to 15 recommendations" },
+        "isDemo": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "ownerUid", "reportNumber", "title", "pillar", "editionId", "generationDate",
+        "author", "confidentiality", "summaryFindings", "kpis", "recommendations", "isDemo",
+        "createdAt", "updatedAt"
+      ]
+    },
+    "ExternalConnectorRecord": {
+      "title": "ExternalConnectorRecord",
+      "description": "External system integration connector configuration (CRM, Ticketing, B2B Portal).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "systemType": { "type": "string", "enum": ["CRM", "Ticketing", "B2B Portal", "Smart Stand", "Custom REST"] },
+        "mode": { "type": "string", "enum": ["Pull (REST/CSV)", "Webhook Push"] },
+        "targetModule": { "type": "string", "enum": ["exhibitors", "visitors", "commercial", "trade"] },
+        "endpointUrl": { "type": "string", "maxLength": 500 },
+        "dataPath": { "type": "string", "maxLength": 120 },
+        "authType": { "type": "string", "enum": ["None", "Bearer Token", "API Key Header"] },
+        "authHeaderName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["Connected", "Standby", "Error", "Syncing"] },
+        "lastSyncAt": { "type": "string", "maxLength": 40 },
+        "lastSyncCount": { "type": "number" },
+        "lastLatencyMs": { "type": "number" },
+        "lastStatusCode": { "type": "number" },
+        "lastError": { "type": "string", "maxLength": 500 },
+        "autoDeduplicate": { "type": "boolean" },
+        "description": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "name", "systemType", "mode", "targetModule", "endpointUrl", "authType", "status", "autoDeduplicate", "createdAt", "updatedAt"]
+    },
+    "ConnectorSyncLogRecord": {
+      "title": "ConnectorSyncLogRecord",
+      "description": "Execution telemetry record for external connector synchronization.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "connectorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "connectorName": { "type": "string", "maxLength": 160 },
+        "timestamp": { "type": "string", "maxLength": 40 },
+        "status": { "type": "string", "enum": ["Success", "Failed"] },
+        "statusCode": { "type": "number" },
+        "latencyMs": { "type": "number" },
+        "recordsFetched": { "type": "number" },
+        "recordsImported": { "type": "number" },
+        "duplicatesSkipped": { "type": "number" },
+        "message": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "connectorId", "connectorName", "timestamp", "status", "recordsFetched", "recordsImported", "duplicatesSkipped", "message", "createdAt", "updatedAt"]
+    },
+    "ThresholdAlertRuleRecord": {
+      "title": "ThresholdAlertRuleRecord",
+      "description": "Configurable KPI breach alert rule.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "metricKey": {
+          "type": "string",
+          "enum": ["collection_rate_pct", "outstanding_balance_usd", "space_occupancy_pct", "open_incidents_count", "network_uptime_pct", "exhibitor_retention_pct", "verified_deals_usd", "anomaly_count"]
+        },
+        "operator": { "type": "string", "enum": ["lt", "lte", "gt", "gte"] },
+        "threshold": { "type": "number" },
+        "severity": { "type": "string", "enum": ["Critical", "Warning", "Info"] },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "notifyRoles": { "type": "array", "description": "Up to 10 role names" },
+        "recipients": { "type": "string", "maxLength": 400 },
+        "isActive": { "type": "boolean" },
+        "lastEvaluatedAt": { "type": "string", "maxLength": 40 },
+        "lastTriggeredAt": { "type": "string", "maxLength": 40 },
+        "createdAtIso": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "name", "metricKey", "operator", "threshold", "severity", "editionId", "notifyRoles", "recipients", "isActive", "createdAt", "updatedAt"]
+    },
+    "AlertEventRecord": {
+      "title": "AlertEventRecord",
+      "description": "Triggered KPI breach notification event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ruleId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "ruleName": { "type": "string", "maxLength": 160 },
+        "metricKey": { "type": "string", "maxLength": 64 },
+        "metricLabel": { "type": "string", "maxLength": 120 },
+        "observedValue": { "type": "number" },
+        "threshold": { "type": "number" },
+        "operator": { "type": "string", "enum": ["lt", "lte", "gt", "gte"] },
+        "severity": { "type": "string", "enum": ["Critical", "Warning", "Info"] },
+        "editionId": { "type": "string", "maxLength": 64 },
+        "message": { "type": "string", "maxLength": 600 },
+        "status": { "type": "string", "enum": ["Active", "Acknowledged", "Resolved"] },
+        "triggeredAt": { "type": "string", "maxLength": 40 },
+        "acknowledgedBy": { "type": "string", "maxLength": 140 },
+        "acknowledgedAt": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "ruleId", "ruleName", "metricKey", "metricLabel", "observedValue", "threshold", "operator", "severity", "editionId", "message", "status", "triggeredAt", "createdAt", "updatedAt"]
+    },
+    "ScheduledReportRecord": {
+      "title": "ScheduledReportRecord",
+      "description": "Automated BI report generation schedule.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "pillar": { "type": "string", "enum": ["Executive", "Exhibitor", "Visitor", "Commercial", "Trade Impact", "Operational", "Market Insight"] },
+        "editionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "confidentiality": { "type": "string", "enum": ["Confidential - Board & Executive", "Management Internal", "Public Trade Release"] },
+        "frequency": { "type": "string", "enum": ["Hourly (Monitor)", "Daily", "Weekly", "Monthly"] },
+        "runTimeUtc": { "type": "string", "maxLength": 20 },
+        "dayOfWeekOrMonth": { "type": "string", "maxLength": 32 },
+        "recipients": { "type": "string", "maxLength": 400 },
+        "includeMiningForecast": { "type": "boolean" },
+        "isActive": { "type": "boolean" },
+        "lastRunAt": { "type": "string", "maxLength": 40 },
+        "nextRunAt": { "type": "string", "maxLength": 40 },
+        "lastReportId": { "type": "string", "maxLength": 128 },
+        "runCount": { "type": "number" },
+        "createdAtIso": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "name", "pillar", "editionId", "confidentiality", "frequency", "runTimeUtc", "recipients", "includeMiningForecast", "isActive", "nextRunAt", "runCount", "createdAt", "updatedAt"]
+    },
+    "SharedBriefRecord": {
+      "title": "SharedBriefRecord",
+      "description": "Collaborative executive approval brief and share link record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "shareToken": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "targetType": { "type": "string", "enum": ["Report", "Dashboard", "DataMining", "TradeDeal", "Incident", "MarketInsight"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 220 },
+        "editionId": { "type": "string", "maxLength": 64 },
+        "sharedByName": { "type": "string", "maxLength": 140 },
+        "sharedByEmail": { "type": "string", "maxLength": 160 },
+        "sharedByRole": { "type": "string", "maxLength": 80 },
+        "recipientEmails": { "type": "array", "description": "Up to 25 recipient email strings" },
+        "recipientRoles": { "type": "array", "description": "Up to 10 role names" },
+        "accessLevel": { "type": "string", "enum": ["View Only", "Comment & Annotate", "Approve / Sign-Off"] },
+        "note": { "type": "string", "maxLength": 1000 },
+        "workflowStatus": { "type": "string", "enum": ["Shared", "In Review", "Changes Requested", "Approved"] },
+        "approvedBy": { "type": "string", "maxLength": 140 },
+        "approvedAt": { "type": "string", "maxLength": 40 },
+        "snapshotSummary": { "type": "string", "maxLength": 1500 },
+        "createdAtIso": { "type": "string", "maxLength": 40 },
+        "expiresAt": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "shareToken", "targetType", "targetId", "title", "editionId", "sharedByName", "sharedByEmail", "sharedByRole", "recipientEmails", "recipientRoles", "accessLevel", "note", "workflowStatus", "createdAt", "updatedAt"]
+    },
+    "AnnotationRecord": {
+      "title": "AnnotationRecord",
+      "description": "Contextual executive comment/annotation attached to BI views or deals.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "targetType": { "type": "string", "enum": ["Report", "Dashboard", "DataMining", "TradeDeal", "Incident", "MarketInsight"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "targetTitle": { "type": "string", "maxLength": 220 },
+        "sectionTag": { "type": "string", "maxLength": 120 },
+        "authorName": { "type": "string", "maxLength": 140 },
+        "authorEmail": { "type": "string", "maxLength": 160 },
+        "authorRole": { "type": "string", "maxLength": 80 },
+        "body": { "type": "string", "maxLength": 2000 },
+        "mentions": { "type": "array", "description": "Up to 20 @mention tags" },
+        "status": { "type": "string", "enum": ["Open", "Resolved"] },
+        "resolvedBy": { "type": "string", "maxLength": 140 },
+        "resolvedAt": { "type": "string", "maxLength": 40 },
+        "createdAtIso": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "targetType", "targetId", "targetTitle", "sectionTag", "authorName", "authorEmail", "authorRole", "body", "mentions", "status", "createdAt", "updatedAt"]
+    },
+    "EmailDispatchRecord": {
+      "title": "EmailDispatchRecord",
+      "description": "Dispatched email brief queue/relay log.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "targetType": { "type": "string", "enum": ["Report", "Dashboard", "DataMining", "TradeDeal", "Incident", "MarketInsight"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "subject": { "type": "string", "maxLength": 240 },
+        "recipients": { "type": "array", "description": "Up to 25 recipient email strings" },
+        "bodyPreview": { "type": "string", "maxLength": 1200 },
+        "shareUrl": { "type": "string", "maxLength": 500 },
+        "senderName": { "type": "string", "maxLength": 140 },
+        "senderEmail": { "type": "string", "maxLength": 160 },
+        "deliveryMode": { "type": "string", "enum": ["Webhook Relay", "MIME Queue & Mailto Dispatch"] },
+        "status": { "type": "string", "enum": ["Dispatched", "Queued (MIME Ready)", "Failed"] },
+        "dispatchedAt": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "targetType", "targetId", "subject", "recipients", "bodyPreview", "senderName", "senderEmail", "deliveryMode", "status", "dispatchedAt", "createdAt", "updatedAt"]
+    },
+    "AuditLogRecord": {
+      "title": "AuditLogRecord",
+      "description": "Immutable institutional BI audit trail entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "timestamp": { "type": "string", "maxLength": 40 },
+        "userEmail": { "type": "string", "maxLength": 160 },
+        "userRole": { "type": "string", "maxLength": 80 },
+        "action": { "type": "string", "maxLength": 120 },
+        "module": { "type": "string", "maxLength": 120 },
+        "details": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "timestamp", "userEmail", "userRole", "action", "module", "details", "createdAt"]
+    },
+    "DirectoryUserRecord": {
+      "title": "DirectoryUserRecord",
+      "description": "ZITF BI personnel profile directory record isolated per owner/admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 160 },
+        "role": { "type": "string", "enum": ["Super Administrator", "Executive Management", "Department Manager", "Data Analyst", "Data Entry Officer", "External Stakeholder / Viewer"] },
+        "department": { "type": "string", "maxLength": 140 },
+        "isActive": { "type": "boolean" },
+        "lastLogin": { "type": "string", "maxLength": 40 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerUid", "name", "email", "role", "department", "isActive", "lastLogin", "createdAt", "updatedAt"]
+    },
+    "WorkspacePreferenceRecord": {
+      "title": "WorkspacePreferenceRecord",
+      "description": "Owner-isolated active filter preferences synced to Cloud Firestore.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "selectedEditionId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "selectedPeriod": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "selectedSector": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "geographicFilter": { "type": "string", "enum": ["all", "local", "international"] },
+        "selectedCountry": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "selectedEditionId", "selectedPeriod", "selectedSector", "geographicFilter", "selectedCountry", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateProfile" },
+      "description": "Owner-isolated private user metadata document (docId='profile')."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRegistryEntry" },
+      "description": "Authoritative admin UID registry."
+    },
+    "/workspaceSnapshots/{snapshotId}": {
+      "schema": { "$ref": "#/entities/WarehouseSnapshot" },
+      "description": "Synchronized ZITF Business Intelligence KPI snapshots."
+    },
+    "/workspaceSnapshots/{snapshotId}/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/SyncedBIReport" },
+      "description": "Synchronized BI reports attached to a parent workspace snapshot."
+    },
+    "/editions/{editionId}": {
+      "schema": { "$ref": "#/entities/ZitfEdition" },
+      "description": "ZITF Exhibition edition cycles."
+    },
+    "/exhibitors/{exhibitorId}": {
+      "schema": { "$ref": "#/entities/ExhibitorRecord" },
+      "description": "Pillar 1 Exhibitor directory and stand bookings."
+    },
+    "/visitors/{visitorId}": {
+      "schema": { "$ref": "#/entities/VisitorRecord" },
+      "description": "Pillar 2 Registered trade & public visitor attendance records."
+    },
+    "/commercialTransactions/{txId}": {
+      "schema": { "$ref": "#/entities/CommercialTransactionRecord" },
+      "description": "Pillar 3 Commercial invoices, sponsorships, and balances."
+    },
+    "/tradeEngagements/{engagementId}": {
+      "schema": { "$ref": "#/entities/TradeEngagementRecord" },
+      "description": "Pillar 4 B2B matchmaking & verified export trade deals."
+    },
+    "/hallUtilisation/{hallId}": {
+      "schema": { "$ref": "#/entities/HallUtilisationRecord" },
+      "description": "Pillar 5 Exhibition hall capacity and Wi-Fi uptime telemetry."
+    },
+    "/operationalIncidents/{incidentId}": {
+      "schema": { "$ref": "#/entities/OperationalIncidentRecord" },
+      "description": "Pillar 5 Operational incident tickets."
+    },
+    "/marketInsights/{insightId}": {
+      "schema": { "$ref": "#/entities/MarketInsightRecord" },
+      "description": "Pillar 6 Strategic market intelligence briefs."
+    },
+    "/biReports/{reportId}": {
+      "schema": { "$ref": "#/entities/BIReportRecord" },
+      "description": "Executive BI report registry."
+    },
+    "/externalConnectors/{connectorId}": {
+      "schema": { "$ref": "#/entities/ExternalConnectorRecord" },
+      "description": "External CRM/Ticketing/Portal connector definitions."
+    },
+    "/connectorSyncLogs/{logId}": {
+      "schema": { "$ref": "#/entities/ConnectorSyncLogRecord" },
+      "description": "Connector sync execution logs."
+    },
+    "/thresholdAlertRules/{ruleId}": {
+      "schema": { "$ref": "#/entities/ThresholdAlertRuleRecord" },
+      "description": "Automated KPI threshold alert rules."
+    },
+    "/alertEvents/{eventId}": {
+      "schema": { "$ref": "#/entities/AlertEventRecord" },
+      "description": "Triggered KPI breach alert events."
+    },
+    "/scheduledReports/{scheduleId}": {
+      "schema": { "$ref": "#/entities/ScheduledReportRecord" },
+      "description": "Recurring BI report dispatch schedules."
+    },
+    "/sharedBriefs/{briefId}": {
+      "schema": { "$ref": "#/entities/SharedBriefRecord" },
+      "description": "Collaborative executive review briefs & sign-off workflows."
+    },
+    "/annotations/{commentId}": {
+      "schema": { "$ref": "#/entities/AnnotationRecord" },
+      "description": "Collaborative annotations & review comments."
+    },
+    "/emailDispatches/{dispatchId}": {
+      "schema": { "$ref": "#/entities/EmailDispatchRecord" },
+      "description": "Outbound email brief delivery audit records."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogRecord" },
+      "description": "Immutable BI workspace audit log trail."
+    },
+    "/directoryUsers/{staffId}": {
+      "schema": { "$ref": "#/entities/DirectoryUserRecord" },
+      "description": "ZITF BI personnel RBAC directory records isolated per owner/admin."
+    },
+    "/workspacePreferences/{userId}": {
+      "schema": { "$ref": "#/entities/WorkspacePreferenceRecord" },
+      "description": "Per-user active edition, country, sector, and period filter state."
+    }
+  }
+}

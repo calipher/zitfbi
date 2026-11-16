@@ -1,0 +1,1367 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Core Zero-Trust Primitives
+    // -------------------------------------------------------------------------
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isBootstrappedAdminEmail() {
+      return isSignedIn() && request.auth.token.email == 'calipherrndlovu@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdminEmail() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isStr(v, minLen, maxLen) {
+      return v is string && v.size() >= minLen && v.size() <= maxLen;
+    }
+
+    function isOptStr(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isOptNum(data, field, minVal) {
+      return !(field in data) || (data[field] is number && data[field] >= minVal);
+    }
+
+    function isStringList(arr, maxItems, maxItemLen) {
+      return arr is list && arr.size() <= maxItems && (
+        arr.size() == 0 || (arr[0] is string && arr[0].size() <= maxItemLen)
+      );
+    }
+
+    function isNumList(arr, maxItems) {
+      return arr is list && arr.size() <= maxItems && (
+        arr.size() == 0 || arr[0] is number
+      );
+    }
+
+    function isKpiList(arr, maxItems) {
+      return arr is list && arr.size() <= maxItems && (
+        arr.size() == 0 || (
+          arr[0] is map &&
+          arr[0].keys().hasAll(['label', 'value']) &&
+          arr[0].keys().hasOnly(['label', 'value', 'trend']) &&
+          isStr(arr[0].label, 1, 120) &&
+          isStr(arr[0].value, 1, 120) &&
+          (!('trend' in arr[0]) || isStr(arr[0].trend, 0, 120))
+        )
+      );
+    }
+
+    function isValidTargetType(t) {
+      return t in ['Report', 'Dashboard', 'DataMining', 'TradeDeal', 'Incident', 'MarketInsight'];
+    }
+
+    function isValidPillar(p) {
+      return p in ['Executive', 'Exhibitor', 'Visitor', 'Commercial', 'Trade Impact', 'Operational', 'Market Insight'];
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Blueprint Validators (Zero existing() or diff() inside helpers)
+    // -------------------------------------------------------------------------
+    function isValidUserPrivateProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'department', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'displayName', 'department', 'createdAt', 'updatedAt']) &&
+        data.uid == userId &&
+        isValidId(data.uid) &&
+        isStr(data.email, 5, 160) &&
+        isStr(data.displayName, 1, 120) &&
+        isStr(data.department, 1, 120) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRegistry(data, adminUid) {
+      return data.keys().hasAll(['uid', 'email', 'assignedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'assignedAt']) &&
+        data.uid == adminUid &&
+        isValidId(data.uid) &&
+        isStr(data.email, 5, 160) &&
+        data.assignedAt is timestamp;
+    }
+
+    function isValidWarehouseSnapshot(data, snapshotId) {
+      return data.keys().hasAll([
+          'snapshotId', 'ownerUid', 'ownerEmail', 'editionId', 'editionLabel', 'status',
+          'totalExhibitors', 'totalVisitors', 'totalRevenueUsd', 'verifiedDealsUsd',
+          'spaceOccupancyPct', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'snapshotId', 'ownerUid', 'ownerEmail', 'editionId', 'editionLabel', 'status',
+          'totalExhibitors', 'totalVisitors', 'totalRevenueUsd', 'verifiedDealsUsd',
+          'spaceOccupancyPct', 'notes', 'createdAt', 'updatedAt'
+        ]) &&
+        data.snapshotId == snapshotId &&
+        isValidId(data.snapshotId) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.ownerEmail, 5, 160) &&
+        isStr(data.editionId, 2, 64) &&
+        isStr(data.editionLabel, 2, 120) &&
+        data.status in ['Synced', 'Archived'] &&
+        data.totalExhibitors is number && data.totalExhibitors >= 0 &&
+        data.totalVisitors is number && data.totalVisitors >= 0 &&
+        data.totalRevenueUsd is number && data.totalRevenueUsd >= 0 &&
+        data.verifiedDealsUsd is number && data.verifiedDealsUsd >= 0 &&
+        data.spaceOccupancyPct is number && data.spaceOccupancyPct >= 0 && data.spaceOccupancyPct <= 100 &&
+        isOptStr(data, 'notes', 500) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSyncedBIReport(data, snapshotId, reportId) {
+      return data.keys().hasAll([
+          'reportId', 'snapshotId', 'ownerUid', 'title', 'pillar', 'summaryFindings', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'reportId', 'snapshotId', 'ownerUid', 'title', 'pillar', 'summaryFindings', 'createdAt', 'updatedAt'
+        ]) &&
+        data.reportId == reportId &&
+        isValidId(data.reportId) &&
+        data.snapshotId == snapshotId &&
+        isValidId(data.snapshotId) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.title, 3, 200) &&
+        isValidPillar(data.pillar) &&
+        isStr(data.summaryFindings, 3, 2000) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidEdition(data, editionId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'name', 'editionNumber', 'theme', 'year',
+          'startDate', 'endDate', 'venue', 'status', 'isCurrent', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'editionNumber', 'theme', 'year',
+          'startDate', 'endDate', 'venue', 'status', 'isCurrent', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == editionId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.name, 2, 120) &&
+        data.editionNumber is number && data.editionNumber >= 1 && data.editionNumber <= 500 &&
+        isStr(data.theme, 0, 240) &&
+        data.year is number && data.year >= 1950 && data.year <= 2150 &&
+        isStr(data.startDate, 0, 32) &&
+        isStr(data.endDate, 0, 32) &&
+        isStr(data.venue, 0, 200) &&
+        data.status in ['Upcoming', 'Active', 'Concluded'] &&
+        data.isCurrent is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidExhibitor(data, exhibitorId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'companyName', 'regNumber', 'businessDescription', 'industry', 'sector',
+          'country', 'provinceCity', 'contactPerson', 'email', 'phone', 'website', 'productsServices',
+          'editionId', 'hallStand', 'standSizeSqm', 'category', 'registrationDate', 'bookingStatus',
+          'paymentStatus', 'returningStatus', 'satisfactionScore', 'participationHistory', 'isDemo',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'companyName', 'regNumber', 'businessDescription', 'industry', 'sector',
+          'country', 'provinceCity', 'contactPerson', 'email', 'phone', 'website', 'productsServices',
+          'editionId', 'hallStand', 'standSizeSqm', 'category', 'registrationDate', 'bookingStatus',
+          'paymentStatus', 'returningStatus', 'satisfactionScore', 'participationHistory', 'isDemo',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.id == exhibitorId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.companyName, 1, 200) &&
+        isStr(data.regNumber, 1, 80) &&
+        isStr(data.businessDescription, 0, 1000) &&
+        isStr(data.industry, 0, 120) &&
+        isStr(data.sector, 0, 120) &&
+        isStr(data.country, 2, 100) &&
+        isStr(data.provinceCity, 0, 120) &&
+        isStr(data.contactPerson, 0, 140) &&
+        isStr(data.email, 0, 160) &&
+        isStr(data.phone, 0, 64) &&
+        isStr(data.website, 0, 200) &&
+        isStringList(data.productsServices, 25, 160) &&
+        isStr(data.editionId, 1, 64) &&
+        isStr(data.hallStand, 0, 100) &&
+        data.standSizeSqm is number && data.standSizeSqm >= 0 && data.standSizeSqm <= 50000 &&
+        data.category in ['Local Commercial', 'International Pavilion', 'State Owned Enterprise', 'SME / Emerging', 'Education & Research', 'Tech & Innovation'] &&
+        isStr(data.registrationDate, 0, 32) &&
+        data.bookingStatus in ['Confirmed', 'Reserved', 'Waitlisted', 'Cancelled'] &&
+        data.paymentStatus in ['Fully Paid', 'Partially Paid', 'Pending'] &&
+        data.returningStatus in ['New', 'Returning'] &&
+        data.satisfactionScore is number && data.satisfactionScore >= 0 && data.satisfactionScore <= 5 &&
+        isNumList(data.participationHistory, 20) &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVisitor(data, visitorId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'visitorRef', 'fullName', 'category', 'country', 'cityProvince',
+          'organization', 'industry', 'email', 'phone', 'registrationDate', 'editionId',
+          'attendanceDays', 'interests', 'areasVisited', 'feedbackRating', 'repeatVisitor',
+          'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'visitorRef', 'fullName', 'category', 'country', 'cityProvince',
+          'organization', 'industry', 'email', 'phone', 'registrationDate', 'editionId',
+          'attendanceDays', 'interests', 'areasVisited', 'feedbackRating', 'repeatVisitor',
+          'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == visitorId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.visitorRef, 1, 80) &&
+        isStr(data.fullName, 1, 160) &&
+        data.category in ['Business Visitors', 'General Public', 'Students', 'Government Representatives', 'International Delegates', 'Investors', 'Buyers and Procurement', 'Media Representatives'] &&
+        isStr(data.country, 2, 100) &&
+        isStr(data.cityProvince, 0, 120) &&
+        isStr(data.organization, 0, 200) &&
+        isStr(data.industry, 0, 120) &&
+        isStr(data.email, 0, 160) &&
+        isStr(data.phone, 0, 64) &&
+        isStr(data.registrationDate, 0, 32) &&
+        isStr(data.editionId, 1, 64) &&
+        isStringList(data.attendanceDays, 10, 60) &&
+        isStringList(data.interests, 20, 120) &&
+        isStringList(data.areasVisited, 20, 120) &&
+        data.feedbackRating is number && data.feedbackRating >= 0 && data.feedbackRating <= 5 &&
+        data.repeatVisitor is bool &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCommercialTransaction(data, txId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'refNumber', 'type', 'clientName', 'amountUsd', 'outstandingBalanceUsd',
+          'editionId', 'status', 'paymentDate', 'sector', 'notes', 'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'refNumber', 'type', 'clientName', 'exhibitorId', 'amountUsd',
+          'outstandingBalanceUsd', 'editionId', 'status', 'paymentDate', 'sector', 'notes',
+          'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == txId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.refNumber, 1, 80) &&
+        data.type in ['Exhibition Hall Space', 'Sponsorship Agreement', 'Advertising & Signage', 'Conference & Forum Pass', 'Commercial Services', 'Logistics & Utilities'] &&
+        isStr(data.clientName, 1, 200) &&
+        isOptStr(data, 'exhibitorId', 128) &&
+        data.amountUsd is number && data.amountUsd >= 0 &&
+        data.outstandingBalanceUsd is number && data.outstandingBalanceUsd >= 0 &&
+        isStr(data.editionId, 1, 64) &&
+        data.status in ['Fully Paid', 'Deposit Paid', 'Invoice Sent', 'Overdue'] &&
+        isStr(data.paymentDate, 0, 32) &&
+        isStr(data.sector, 0, 120) &&
+        isStr(data.notes, 0, 500) &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidTradeEngagement(data, engagementId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'refNumber', 'editionId', 'date', 'buyerOrg', 'buyerCountry',
+          'supplierOrg', 'supplierCountry', 'industry', 'opportunityType', 'description',
+          'estimatedValueUsd', 'engagementStatus', 'followUpDate', 'outcome',
+          'verificationStatus', 'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'refNumber', 'editionId', 'date', 'buyerOrg', 'buyerCountry',
+          'supplierOrg', 'supplierCountry', 'industry', 'opportunityType', 'description',
+          'estimatedValueUsd', 'engagementStatus', 'followUpDate', 'outcome',
+          'verificationStatus', 'verifiedDate', 'supportingDocName', 'isDemo',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.id == engagementId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.refNumber, 1, 80) &&
+        isStr(data.editionId, 1, 64) &&
+        isStr(data.date, 0, 32) &&
+        isStr(data.buyerOrg, 1, 200) &&
+        isStr(data.buyerCountry, 2, 100) &&
+        isStr(data.supplierOrg, 1, 200) &&
+        isStr(data.supplierCountry, 2, 100) &&
+        isStr(data.industry, 0, 120) &&
+        data.opportunityType in ['Export Opportunity', 'Import Opportunity', 'Joint Venture / Partnership', 'Distribution Agreement', 'Supply Contract', 'Investment Enquiry', 'Technology Transfer'] &&
+        isStr(data.description, 0, 1000) &&
+        data.estimatedValueUsd is number && data.estimatedValueUsd >= 0 &&
+        data.engagementStatus in ['New', 'Contact Established', 'Meeting Scheduled', 'Meeting Completed', 'Follow-up Required', 'Negotiation Ongoing', 'Opportunity Converted', 'Closed / Unsuccessful'] &&
+        isStr(data.followUpDate, 0, 32) &&
+        isStr(data.outcome, 0, 500) &&
+        data.verificationStatus in ['Facilitated Opportunity', 'Reported by Participant', 'Independently Verified'] &&
+        isOptStr(data, 'verifiedDate', 32) &&
+        isOptStr(data, 'supportingDocName', 200) &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidHallUtilisation(data, hallId) {
+      return data.keys().hasAll([
+          'hallId', 'ownerUid', 'hallName', 'totalCapacitySqm', 'occupiedSqm',
+          'utilizationRatePct', 'primarySector', 'wifiUptimePct', 'activeExhibitorsCount',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'hallId', 'ownerUid', 'hallName', 'totalCapacitySqm', 'occupiedSqm',
+          'utilizationRatePct', 'primarySector', 'wifiUptimePct', 'activeExhibitorsCount',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.hallId == hallId &&
+        isValidId(data.hallId) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.hallName, 1, 120) &&
+        data.totalCapacitySqm is number && data.totalCapacitySqm >= 0 &&
+        data.occupiedSqm is number && data.occupiedSqm >= 0 &&
+        data.utilizationRatePct is number && data.utilizationRatePct >= 0 && data.utilizationRatePct <= 100 &&
+        isStr(data.primarySector, 0, 120) &&
+        data.wifiUptimePct is number && data.wifiUptimePct >= 0 && data.wifiUptimePct <= 100 &&
+        data.activeExhibitorsCount is number && data.activeExhibitorsCount >= 0 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidOperationalIncident(data, incidentId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'refNumber', 'editionId', 'hallOrArea', 'category', 'severity',
+          'title', 'description', 'reportedTime', 'status', 'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'refNumber', 'editionId', 'hallOrArea', 'category', 'severity',
+          'title', 'description', 'reportedTime', 'resolvedTime', 'status', 'resolutionNotes',
+          'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == incidentId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.refNumber, 1, 80) &&
+        isStr(data.editionId, 1, 64) &&
+        isStr(data.hallOrArea, 1, 120) &&
+        data.category in ['ICT & Network', 'Electrical & Power', 'Facilities & HVAC', 'Logistics & Transport', 'Security & Safety', 'Customer Care'] &&
+        data.severity in ['Low', 'Medium', 'High', 'Critical'] &&
+        isStr(data.title, 2, 200) &&
+        isStr(data.description, 0, 1000) &&
+        isStr(data.reportedTime, 0, 40) &&
+        isOptStr(data, 'resolvedTime', 40) &&
+        data.status in ['Open', 'In Progress', 'Resolved'] &&
+        isOptStr(data, 'resolutionNotes', 600) &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidMarketInsight(data, insightId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'title', 'sector', 'marketType', 'summary', 'keyIndicators',
+          'estimatedMarketValueUsd', 'growthRateYoY', 'zimbabweMarketContext',
+          'sourceAttribution', 'date', 'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'title', 'sector', 'marketType', 'summary', 'keyIndicators',
+          'estimatedMarketValueUsd', 'growthRateYoY', 'zimbabweMarketContext',
+          'sourceAttribution', 'date', 'isDemo', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == insightId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.title, 2, 220) &&
+        isStr(data.sector, 2, 120) &&
+        data.marketType in ['Emerging Sector', 'Export Potential', 'Investment Opportunity', 'SME Growth', 'Technology Trend', 'Trade Corridor'] &&
+        isStr(data.summary, 0, 1500) &&
+        isStringList(data.keyIndicators, 15, 160) &&
+        data.estimatedMarketValueUsd is number && data.estimatedMarketValueUsd >= 0 &&
+        data.growthRateYoY is number &&
+        isStr(data.zimbabweMarketContext, 0, 1000) &&
+        isStr(data.sourceAttribution, 0, 200) &&
+        isStr(data.date, 0, 32) &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBIReport(data, reportId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'reportNumber', 'title', 'pillar', 'editionId', 'generationDate',
+          'author', 'confidentiality', 'summaryFindings', 'kpis', 'recommendations', 'isDemo',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'reportNumber', 'title', 'pillar', 'editionId', 'generationDate',
+          'author', 'confidentiality', 'summaryFindings', 'kpis', 'recommendations', 'isDemo',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.id == reportId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.reportNumber, 1, 80) &&
+        isStr(data.title, 2, 220) &&
+        isValidPillar(data.pillar) &&
+        isStr(data.editionId, 1, 64) &&
+        isStr(data.generationDate, 0, 40) &&
+        isStr(data.author, 0, 140) &&
+        data.confidentiality in ['Confidential - Board & Executive', 'Management Internal', 'Public Trade Release'] &&
+        isStr(data.summaryFindings, 0, 3000) &&
+        isKpiList(data.kpis, 12) &&
+        isStringList(data.recommendations, 15, 240) &&
+        data.isDemo is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidExternalConnector(data, connectorId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'name', 'systemType', 'mode', 'targetModule', 'endpointUrl',
+          'authType', 'status', 'autoDeduplicate', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'systemType', 'mode', 'targetModule', 'endpointUrl',
+          'dataPath', 'authType', 'authHeaderName', 'status', 'lastSyncAt', 'lastSyncCount',
+          'lastLatencyMs', 'lastStatusCode', 'lastError', 'autoDeduplicate', 'description',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.id == connectorId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.name, 1, 160) &&
+        data.systemType in ['CRM', 'Ticketing', 'B2B Portal', 'Smart Stand', 'Custom REST'] &&
+        data.mode in ['Pull (REST/CSV)', 'Webhook Push'] &&
+        data.targetModule in ['exhibitors', 'visitors', 'commercial', 'trade'] &&
+        isStr(data.endpointUrl, 0, 500) &&
+        isOptStr(data, 'dataPath', 120) &&
+        data.authType in ['None', 'Bearer Token', 'API Key Header'] &&
+        isOptStr(data, 'authHeaderName', 100) &&
+        data.status in ['Connected', 'Standby', 'Error', 'Syncing'] &&
+        isOptStr(data, 'lastSyncAt', 40) &&
+        isOptNum(data, 'lastSyncCount', 0) &&
+        isOptNum(data, 'lastLatencyMs', 0) &&
+        isOptNum(data, 'lastStatusCode', 0) &&
+        isOptStr(data, 'lastError', 500) &&
+        data.autoDeduplicate is bool &&
+        isOptStr(data, 'description', 500) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidConnectorSyncLog(data, logId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'connectorId', 'connectorName', 'timestamp', 'status',
+          'recordsFetched', 'recordsImported', 'duplicatesSkipped', 'message',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'connectorId', 'connectorName', 'timestamp', 'status',
+          'statusCode', 'latencyMs', 'recordsFetched', 'recordsImported', 'duplicatesSkipped',
+          'message', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == logId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.connectorId, 1, 128) &&
+        isStr(data.connectorName, 0, 160) &&
+        isStr(data.timestamp, 0, 40) &&
+        data.status in ['Success', 'Failed'] &&
+        isOptNum(data, 'statusCode', 0) &&
+        isOptNum(data, 'latencyMs', 0) &&
+        data.recordsFetched is number && data.recordsFetched >= 0 &&
+        data.recordsImported is number && data.recordsImported >= 0 &&
+        data.duplicatesSkipped is number && data.duplicatesSkipped >= 0 &&
+        isStr(data.message, 0, 600) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidThresholdAlertRule(data, ruleId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'name', 'metricKey', 'operator', 'threshold', 'severity',
+          'editionId', 'notifyRoles', 'recipients', 'isActive', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'metricKey', 'operator', 'threshold', 'severity',
+          'editionId', 'notifyRoles', 'recipients', 'isActive', 'lastEvaluatedAt',
+          'lastTriggeredAt', 'createdAtIso', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == ruleId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.name, 1, 160) &&
+        data.metricKey in ['collection_rate_pct', 'outstanding_balance_usd', 'space_occupancy_pct', 'open_incidents_count', 'network_uptime_pct', 'exhibitor_retention_pct', 'verified_deals_usd', 'anomaly_count'] &&
+        data.operator in ['lt', 'lte', 'gt', 'gte'] &&
+        data.threshold is number &&
+        data.severity in ['Critical', 'Warning', 'Info'] &&
+        isStr(data.editionId, 1, 64) &&
+        isStringList(data.notifyRoles, 10, 80) &&
+        isStr(data.recipients, 0, 400) &&
+        data.isActive is bool &&
+        isOptStr(data, 'lastEvaluatedAt', 40) &&
+        isOptStr(data, 'lastTriggeredAt', 40) &&
+        isOptStr(data, 'createdAtIso', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAlertEvent(data, eventId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'ruleId', 'ruleName', 'metricKey', 'metricLabel', 'observedValue',
+          'threshold', 'operator', 'severity', 'editionId', 'message', 'status',
+          'triggeredAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'ruleId', 'ruleName', 'metricKey', 'metricLabel', 'observedValue',
+          'threshold', 'operator', 'severity', 'editionId', 'message', 'status',
+          'triggeredAt', 'acknowledgedBy', 'acknowledgedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == eventId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.ruleId, 1, 128) &&
+        isStr(data.ruleName, 0, 160) &&
+        isStr(data.metricKey, 1, 64) &&
+        isStr(data.metricLabel, 0, 120) &&
+        data.observedValue is number &&
+        data.threshold is number &&
+        data.operator in ['lt', 'lte', 'gt', 'gte'] &&
+        data.severity in ['Critical', 'Warning', 'Info'] &&
+        isStr(data.editionId, 0, 64) &&
+        isStr(data.message, 0, 600) &&
+        data.status in ['Active', 'Acknowledged', 'Resolved'] &&
+        isStr(data.triggeredAt, 0, 40) &&
+        isOptStr(data, 'acknowledgedBy', 140) &&
+        isOptStr(data, 'acknowledgedAt', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidScheduledReport(data, scheduleId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'name', 'pillar', 'editionId', 'confidentiality', 'frequency',
+          'runTimeUtc', 'recipients', 'includeMiningForecast', 'isActive', 'nextRunAt',
+          'runCount', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'pillar', 'editionId', 'confidentiality', 'frequency',
+          'runTimeUtc', 'dayOfWeekOrMonth', 'recipients', 'includeMiningForecast', 'isActive',
+          'lastRunAt', 'nextRunAt', 'lastReportId', 'runCount', 'createdAtIso',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.id == scheduleId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.name, 1, 160) &&
+        isValidPillar(data.pillar) &&
+        isStr(data.editionId, 1, 64) &&
+        data.confidentiality in ['Confidential - Board & Executive', 'Management Internal', 'Public Trade Release'] &&
+        data.frequency in ['Hourly (Monitor)', 'Daily', 'Weekly', 'Monthly'] &&
+        isStr(data.runTimeUtc, 0, 20) &&
+        isOptStr(data, 'dayOfWeekOrMonth', 32) &&
+        isStr(data.recipients, 0, 400) &&
+        data.includeMiningForecast is bool &&
+        data.isActive is bool &&
+        isOptStr(data, 'lastRunAt', 40) &&
+        isStr(data.nextRunAt, 0, 40) &&
+        isOptStr(data, 'lastReportId', 128) &&
+        data.runCount is number && data.runCount >= 0 &&
+        isOptStr(data, 'createdAtIso', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSharedBrief(data, briefId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'shareToken', 'targetType', 'targetId', 'title', 'editionId',
+          'sharedByName', 'sharedByEmail', 'sharedByRole', 'recipientEmails', 'recipientRoles',
+          'accessLevel', 'note', 'workflowStatus', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'shareToken', 'targetType', 'targetId', 'title', 'editionId',
+          'sharedByName', 'sharedByEmail', 'sharedByRole', 'recipientEmails', 'recipientRoles',
+          'accessLevel', 'note', 'workflowStatus', 'approvedBy', 'approvedAt',
+          'snapshotSummary', 'createdAtIso', 'expiresAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == briefId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.shareToken, 1, 128) &&
+        isValidTargetType(data.targetType) &&
+        isStr(data.targetId, 0, 128) &&
+        isStr(data.title, 0, 220) &&
+        isStr(data.editionId, 0, 64) &&
+        isStr(data.sharedByName, 0, 140) &&
+        isStr(data.sharedByEmail, 0, 160) &&
+        isStr(data.sharedByRole, 0, 80) &&
+        isStringList(data.recipientEmails, 25, 160) &&
+        isStringList(data.recipientRoles, 10, 80) &&
+        data.accessLevel in ['View Only', 'Comment & Annotate', 'Approve / Sign-Off'] &&
+        isStr(data.note, 0, 1000) &&
+        data.workflowStatus in ['Shared', 'In Review', 'Changes Requested', 'Approved'] &&
+        isOptStr(data, 'approvedBy', 140) &&
+        isOptStr(data, 'approvedAt', 40) &&
+        isOptStr(data, 'snapshotSummary', 1500) &&
+        isOptStr(data, 'createdAtIso', 40) &&
+        isOptStr(data, 'expiresAt', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAnnotation(data, commentId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'targetType', 'targetId', 'targetTitle', 'sectionTag',
+          'authorName', 'authorEmail', 'authorRole', 'body', 'mentions', 'status',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'targetType', 'targetId', 'targetTitle', 'sectionTag',
+          'authorName', 'authorEmail', 'authorRole', 'body', 'mentions', 'status',
+          'resolvedBy', 'resolvedAt', 'createdAtIso', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == commentId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isValidTargetType(data.targetType) &&
+        isStr(data.targetId, 0, 128) &&
+        isStr(data.targetTitle, 0, 220) &&
+        isStr(data.sectionTag, 0, 120) &&
+        isStr(data.authorName, 0, 140) &&
+        isStr(data.authorEmail, 0, 160) &&
+        isStr(data.authorRole, 0, 80) &&
+        isStr(data.body, 0, 2000) &&
+        isStringList(data.mentions, 20, 120) &&
+        data.status in ['Open', 'Resolved'] &&
+        isOptStr(data, 'resolvedBy', 140) &&
+        isOptStr(data, 'resolvedAt', 40) &&
+        isOptStr(data, 'createdAtIso', 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidEmailDispatch(data, dispatchId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'targetType', 'targetId', 'subject', 'recipients',
+          'bodyPreview', 'senderName', 'senderEmail', 'deliveryMode', 'status',
+          'dispatchedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'targetType', 'targetId', 'subject', 'recipients',
+          'bodyPreview', 'shareUrl', 'senderName', 'senderEmail', 'deliveryMode',
+          'status', 'dispatchedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == dispatchId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isValidTargetType(data.targetType) &&
+        isStr(data.targetId, 0, 128) &&
+        isStr(data.subject, 0, 240) &&
+        isStringList(data.recipients, 25, 160) &&
+        isStr(data.bodyPreview, 0, 1200) &&
+        isOptStr(data, 'shareUrl', 500) &&
+        isStr(data.senderName, 0, 140) &&
+        isStr(data.senderEmail, 0, 160) &&
+        data.deliveryMode in ['Webhook Relay', 'MIME Queue & Mailto Dispatch'] &&
+        data.status in ['Dispatched', 'Queued (MIME Ready)', 'Failed'] &&
+        isStr(data.dispatchedAt, 0, 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data, logId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'timestamp', 'userEmail', 'userRole', 'action', 'module', 'details', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'timestamp', 'userEmail', 'userRole', 'action', 'module', 'details', 'createdAt'
+        ]) &&
+        data.id == logId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.timestamp, 0, 40) &&
+        isStr(data.userEmail, 0, 160) &&
+        isStr(data.userRole, 0, 80) &&
+        isStr(data.action, 0, 120) &&
+        isStr(data.module, 0, 120) &&
+        isStr(data.details, 0, 1000) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidDirectoryUser(data, staffId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'name', 'email', 'role', 'department', 'isActive',
+          'lastLogin', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'name', 'email', 'role', 'department', 'isActive',
+          'lastLogin', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id == staffId &&
+        isValidId(data.id) &&
+        isValidId(data.ownerUid) &&
+        isStr(data.name, 1, 140) &&
+        isStr(data.email, 5, 160) &&
+        data.role in ['Super Administrator', 'Executive Management', 'Department Manager', 'Data Analyst', 'Data Entry Officer', 'External Stakeholder / Viewer'] &&
+        isStr(data.department, 0, 140) &&
+        data.isActive is bool &&
+        isStr(data.lastLogin, 0, 40) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWorkspacePreferences(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'selectedEditionId', 'selectedPeriod', 'selectedSector',
+          'geographicFilter', 'selectedCountry', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid', 'selectedEditionId', 'selectedPeriod', 'selectedSector',
+          'geographicFilter', 'selectedCountry', 'updatedAt'
+        ]) &&
+        data.uid == userId &&
+        isValidId(data.uid) &&
+        isStr(data.selectedEditionId, 1, 64) &&
+        isStr(data.selectedPeriod, 1, 40) &&
+        isStr(data.selectedSector, 1, 120) &&
+        data.geographicFilter in ['all', 'local', 'international'] &&
+        isStr(data.selectedCountry, 1, 100) &&
+        data.updatedAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collection Match Blocks
+    // -------------------------------------------------------------------------
+
+    // Boot connectivity probe document only
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+    }
+
+    // PII-isolated user profile document
+    match /users/{userId}/private/{docId} {
+      allow get: if isValidId(userId) && docId == 'profile' && (isOwner(userId) || isAdmin());
+      allow create: if isValidId(userId) && docId == 'profile' &&
+        isValidUserPrivateProfile(incoming(), userId) &&
+        isOwner(userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && docId == 'profile' &&
+        isValidUserPrivateProfile(incoming(), userId) &&
+        (isOwner(userId) || isAdmin()) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'department', 'updatedAt']);
+      allow delete: if isValidId(userId) && docId == 'profile' && isAdmin();
+    }
+
+    // Authoritative admin UID registry
+    match /admins/{adminUid} {
+      allow get: if isValidId(adminUid) && (isOwner(adminUid) || isAdmin());
+      allow create: if isValidId(adminUid) &&
+        isValidAdminRegistry(incoming(), adminUid) &&
+        isAdmin() &&
+        incoming().assignedAt == request.time;
+      allow update: if isValidId(adminUid) &&
+        isValidAdminRegistry(incoming(), adminUid) &&
+        isAdmin() &&
+        incoming().uid == existing().uid &&
+        incoming().assignedAt == existing().assignedAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email']);
+      allow delete: if isValidId(adminUid) && isAdmin();
+    }
+
+    // Per-user active workspace filter preferences
+    match /workspacePreferences/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidWorkspacePreferences(incoming(), userId) &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        (isOwner(userId) || isAdmin()) &&
+        isValidWorkspacePreferences(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'selectedEditionId', 'selectedPeriod', 'selectedSector',
+          'geographicFilter', 'selectedCountry', 'updatedAt'
+        ]);
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // Synchronized Cloud Firestore Warehouse Snapshots + nested reports
+    match /workspaceSnapshots/{snapshotId} {
+      allow get: if isValidId(snapshotId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(snapshotId) &&
+        isSignedIn() &&
+        isValidWarehouseSnapshot(incoming(), snapshotId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().status == 'Synced' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(snapshotId) &&
+        isSignedIn() &&
+        isValidWarehouseSnapshot(incoming(), snapshotId) &&
+        (isAdmin() || (existing().ownerUid == request.auth.uid && existing().status != 'Archived')) &&
+        incoming().snapshotId == existing().snapshotId &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().ownerEmail == existing().ownerEmail &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'editionId', 'editionLabel', 'totalExhibitors', 'totalVisitors',
+            'totalRevenueUsd', 'verifiedDealsUsd', 'spaceOccupancyPct', 'notes', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt'])
+        );
+      allow delete: if isValidId(snapshotId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+
+      match /reports/{reportId} {
+        allow get: if isValidId(snapshotId) && isValidId(reportId) && isSignedIn() &&
+          (existing().ownerUid == request.auth.uid || isAdmin());
+        allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+        allow create: if isValidId(snapshotId) && isValidId(reportId) &&
+          isSignedIn() &&
+          isValidSyncedBIReport(incoming(), snapshotId, reportId) &&
+          incoming().ownerUid == request.auth.uid &&
+          exists(/databases/$(database)/documents/workspaceSnapshots/$(snapshotId)) &&
+          (
+            get(/databases/$(database)/documents/workspaceSnapshots/$(snapshotId)).data.ownerUid == request.auth.uid ||
+            isAdmin()
+          ) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time;
+        allow update: if isValidId(snapshotId) && isValidId(reportId) &&
+          isSignedIn() &&
+          isValidSyncedBIReport(incoming(), snapshotId, reportId) &&
+          (existing().ownerUid == request.auth.uid || isAdmin()) &&
+          exists(/databases/$(database)/documents/workspaceSnapshots/$(snapshotId)) &&
+          (
+            get(/databases/$(database)/documents/workspaceSnapshots/$(snapshotId)).data.ownerUid == request.auth.uid ||
+            isAdmin()
+          ) &&
+          incoming().reportId == existing().reportId &&
+          incoming().snapshotId == existing().snapshotId &&
+          incoming().ownerUid == existing().ownerUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'pillar', 'summaryFindings', 'updatedAt']);
+        allow delete: if isValidId(snapshotId) && isValidId(reportId) && isSignedIn() &&
+          (existing().ownerUid == request.auth.uid || isAdmin());
+      }
+    }
+
+    // Exhibition Editions
+    match /editions/{editionId} {
+      allow get: if isValidId(editionId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(editionId) &&
+        isSignedIn() &&
+        isValidEdition(incoming(), editionId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(editionId) &&
+        isSignedIn() &&
+        isValidEdition(incoming(), editionId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'editionNumber', 'theme', 'year', 'startDate', 'endDate', 'venue', 'status', 'isCurrent', 'updatedAt'
+        ]);
+      allow delete: if isValidId(editionId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pillar 1: Exhibitors
+    match /exhibitors/{exhibitorId} {
+      allow get: if isValidId(exhibitorId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(exhibitorId) &&
+        isSignedIn() &&
+        isValidExhibitor(incoming(), exhibitorId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(exhibitorId) &&
+        isSignedIn() &&
+        isValidExhibitor(incoming(), exhibitorId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'companyName', 'regNumber', 'businessDescription', 'industry', 'sector',
+          'country', 'provinceCity', 'contactPerson', 'email', 'phone', 'website',
+          'productsServices', 'editionId', 'hallStand', 'standSizeSqm', 'category',
+          'registrationDate', 'bookingStatus', 'paymentStatus', 'returningStatus',
+          'satisfactionScore', 'participationHistory', 'isDemo', 'updatedAt'
+        ]);
+      allow delete: if isValidId(exhibitorId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pillar 2: Visitors
+    match /visitors/{visitorId} {
+      allow get: if isValidId(visitorId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(visitorId) &&
+        isSignedIn() &&
+        isValidVisitor(incoming(), visitorId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(visitorId) &&
+        isSignedIn() &&
+        isValidVisitor(incoming(), visitorId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'visitorRef', 'fullName', 'category', 'country', 'cityProvince',
+          'organization', 'industry', 'email', 'phone', 'registrationDate',
+          'editionId', 'attendanceDays', 'interests', 'areasVisited',
+          'feedbackRating', 'repeatVisitor', 'isDemo', 'updatedAt'
+        ]);
+      allow delete: if isValidId(visitorId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pillar 3: Commercial Transactions
+    match /commercialTransactions/{txId} {
+      allow get: if isValidId(txId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(txId) &&
+        isSignedIn() &&
+        isValidCommercialTransaction(incoming(), txId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(txId) &&
+        isSignedIn() &&
+        isValidCommercialTransaction(incoming(), txId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'refNumber', 'type', 'clientName', 'exhibitorId', 'amountUsd',
+          'outstandingBalanceUsd', 'editionId', 'status', 'paymentDate',
+          'sector', 'notes', 'isDemo', 'updatedAt'
+        ]);
+      allow delete: if isValidId(txId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pillar 4: Trade Engagements (Terminal Lock once Independently Verified for non-admins)
+    match /tradeEngagements/{engagementId} {
+      allow get: if isValidId(engagementId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(engagementId) &&
+        isSignedIn() &&
+        isValidTradeEngagement(incoming(), engagementId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(engagementId) &&
+        isSignedIn() &&
+        isValidTradeEngagement(incoming(), engagementId) &&
+        (isAdmin() || (existing().ownerUid == request.auth.uid && existing().verificationStatus != 'Independently Verified')) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'verificationStatus', 'verifiedDate', 'supportingDocName', 'engagementStatus', 'outcome', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'refNumber', 'editionId', 'date', 'buyerOrg', 'buyerCountry', 'supplierOrg', 'supplierCountry',
+            'industry', 'opportunityType', 'description', 'estimatedValueUsd', 'engagementStatus',
+            'followUpDate', 'outcome', 'isDemo', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(engagementId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pillar 5: Hall Utilisation Telemetry
+    match /hallUtilisation/{hallId} {
+      allow get: if isValidId(hallId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(hallId) &&
+        isSignedIn() &&
+        isValidHallUtilisation(incoming(), hallId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(hallId) &&
+        isSignedIn() &&
+        isValidHallUtilisation(incoming(), hallId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().hallId == existing().hallId &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'hallName', 'totalCapacitySqm', 'occupiedSqm', 'utilizationRatePct',
+          'primarySector', 'wifiUptimePct', 'activeExhibitorsCount', 'updatedAt'
+        ]);
+      allow delete: if isValidId(hallId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pillar 5: Operational Incidents (Terminal Lock once Resolved for non-admins)
+    match /operationalIncidents/{incidentId} {
+      allow get: if isValidId(incidentId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(incidentId) &&
+        isSignedIn() &&
+        isValidOperationalIncident(incoming(), incidentId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(incidentId) &&
+        isSignedIn() &&
+        isValidOperationalIncident(incoming(), incidentId) &&
+        (isAdmin() || (existing().ownerUid == request.auth.uid && existing().status != 'Resolved')) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedTime', 'resolutionNotes', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'refNumber', 'editionId', 'hallOrArea', 'category', 'severity',
+            'title', 'description', 'reportedTime', 'resolvedTime', 'status', 'resolutionNotes', 'isDemo', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(incidentId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Pillar 6: Strategic Market Insights
+    match /marketInsights/{insightId} {
+      allow get: if isValidId(insightId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(insightId) &&
+        isSignedIn() &&
+        isValidMarketInsight(incoming(), insightId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(insightId) &&
+        isSignedIn() &&
+        isValidMarketInsight(incoming(), insightId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'sector', 'marketType', 'summary', 'keyIndicators',
+          'estimatedMarketValueUsd', 'growthRateYoY', 'zimbabweMarketContext',
+          'sourceAttribution', 'date', 'isDemo', 'updatedAt'
+        ]);
+      allow delete: if isValidId(insightId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Reports Registry
+    match /biReports/{reportId} {
+      allow get: if isValidId(reportId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(reportId) &&
+        isSignedIn() &&
+        isValidBIReport(incoming(), reportId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(reportId) &&
+        isSignedIn() &&
+        isValidBIReport(incoming(), reportId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'reportNumber', 'title', 'pillar', 'editionId', 'generationDate',
+          'author', 'confidentiality', 'summaryFindings', 'kpis', 'recommendations', 'isDemo', 'updatedAt'
+        ]);
+      allow delete: if isValidId(reportId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // External Connectors
+    match /externalConnectors/{connectorId} {
+      allow get: if isValidId(connectorId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(connectorId) &&
+        isSignedIn() &&
+        isValidExternalConnector(incoming(), connectorId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(connectorId) &&
+        isSignedIn() &&
+        isValidExternalConnector(incoming(), connectorId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'lastSyncAt', 'lastSyncCount', 'lastLatencyMs', 'lastStatusCode', 'lastError', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'systemType', 'mode', 'targetModule', 'endpointUrl', 'dataPath',
+            'authType', 'authHeaderName', 'autoDeduplicate', 'description', 'status', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(connectorId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Connector Sync Logs (Append-only logs)
+    match /connectorSyncLogs/{logId} {
+      allow get: if isValidId(logId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(logId) &&
+        isSignedIn() &&
+        isValidConnectorSyncLog(incoming(), logId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(logId) &&
+        isAdmin() &&
+        isValidConnectorSyncLog(incoming(), logId) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['message', 'status', 'updatedAt']);
+      allow delete: if isValidId(logId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Threshold Alert Rules
+    match /thresholdAlertRules/{ruleId} {
+      allow get: if isValidId(ruleId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(ruleId) &&
+        isSignedIn() &&
+        isValidThresholdAlertRule(incoming(), ruleId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(ruleId) &&
+        isSignedIn() &&
+        isValidThresholdAlertRule(incoming(), ruleId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['lastEvaluatedAt', 'lastTriggeredAt', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'metricKey', 'operator', 'threshold', 'severity',
+            'editionId', 'notifyRoles', 'recipients', 'isActive', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(ruleId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Alert Events (Terminal Lock once Resolved for non-admins)
+    match /alertEvents/{eventId} {
+      allow get: if isValidId(eventId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(eventId) &&
+        isSignedIn() &&
+        isValidAlertEvent(incoming(), eventId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(eventId) &&
+        isSignedIn() &&
+        isValidAlertEvent(incoming(), eventId) &&
+        (isAdmin() || (existing().ownerUid == request.auth.uid && existing().status != 'Resolved')) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'acknowledgedBy', 'acknowledgedAt', 'updatedAt']);
+      allow delete: if isValidId(eventId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Scheduled Reports
+    match /scheduledReports/{scheduleId} {
+      allow get: if isValidId(scheduleId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(scheduleId) &&
+        isSignedIn() &&
+        isValidScheduledReport(incoming(), scheduleId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(scheduleId) &&
+        isSignedIn() &&
+        isValidScheduledReport(incoming(), scheduleId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['lastRunAt', 'nextRunAt', 'lastReportId', 'runCount', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'pillar', 'editionId', 'confidentiality', 'frequency',
+            'runTimeUtc', 'dayOfWeekOrMonth', 'recipients', 'includeMiningForecast',
+            'isActive', 'nextRunAt', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(scheduleId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Shared Collaboration Briefs (Terminal Lock once Approved for non-admins)
+    match /sharedBriefs/{briefId} {
+      allow get: if isValidId(briefId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(briefId) &&
+        isSignedIn() &&
+        isValidSharedBrief(incoming(), briefId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(briefId) &&
+        isSignedIn() &&
+        isValidSharedBrief(incoming(), briefId) &&
+        (isAdmin() || (existing().ownerUid == request.auth.uid && existing().workflowStatus != 'Approved')) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'workflowStatus', 'approvedBy', 'approvedAt', 'note', 'accessLevel', 'updatedAt'
+        ]);
+      allow delete: if isValidId(briefId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Collaboration Annotations
+    match /annotations/{commentId} {
+      allow get: if isValidId(commentId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(commentId) &&
+        isSignedIn() &&
+        isValidAnnotation(incoming(), commentId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(commentId) &&
+        isSignedIn() &&
+        isValidAnnotation(incoming(), commentId) &&
+        (isAdmin() || existing().ownerUid == request.auth.uid) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedBy', 'resolvedAt', 'body', 'updatedAt']);
+      allow delete: if isValidId(commentId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Email Dispatch Logs
+    match /emailDispatches/{dispatchId} {
+      allow get: if isValidId(dispatchId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(dispatchId) &&
+        isSignedIn() &&
+        isValidEmailDispatch(incoming(), dispatchId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(dispatchId) &&
+        isAdmin() &&
+        isValidEmailDispatch(incoming(), dispatchId) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+      allow delete: if isValidId(dispatchId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+
+    // Immutable Workspace Audit Logs (Append-Only; updates forbidden, deletes admin-only)
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(logId) &&
+        isSignedIn() &&
+        isValidAuditLog(incoming(), logId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(logId) && isAdmin();
+    }
+
+    // ZITF Personnel RBAC Directory Records (Tiered RBAC update protection)
+    match /directoryUsers/{staffId} {
+      allow get: if isValidId(staffId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isBootstrappedAdminEmail());
+      allow create: if isValidId(staffId) &&
+        isSignedIn() &&
+        isValidDirectoryUser(incoming(), staffId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(staffId) &&
+        isSignedIn() &&
+        isValidDirectoryUser(incoming(), staffId) &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'email', 'role', 'department', 'isActive', 'lastLogin', 'updatedAt'
+          ])) ||
+          (existing().ownerUid == request.auth.uid &&
+           incoming().role == existing().role &&
+           incoming().isActive == existing().isActive &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['name', 'department', 'lastLogin', 'updatedAt']))
+        );
+      allow delete: if isValidId(staffId) && isSignedIn() && (existing().ownerUid == request.auth.uid || isAdmin());
+    }
+  }
+}

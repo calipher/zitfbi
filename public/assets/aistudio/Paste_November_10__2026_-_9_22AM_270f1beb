@@ -1,0 +1,893 @@
+# MASTER DEVELOPMENT PROMPT: ZITF BUSINESS INTELLIGENCE PLATFORM
+
+## Project Name
+**ZITF Business Intelligence Platform**
+
+### Tagline
+**Turning ZITF Data into Decisions**
+
+### Strategic Vision
+Develop a modern, intelligent, data-driven Business Intelligence platform that positions the Zimbabwe International Trade Fair (ZITF) as Zimbabwe's leading Business Information and Trade Intelligence Hub.
+
+The platform must transform data generated through ZITF exhibitions, business engagements, commercial activities, visitors, exhibitors and operational processes into actionable insights that support evidence-based decision-making.
+
+This must be a functional, professional enterprise-grade web application, not merely a static dashboard or visual prototype.
+
+---
+
+# 1. PROJECT OBJECTIVE
+
+Develop a centralised Business Intelligence platform for ZITF, built around six strategic pillars:
+
+1. Exhibitor Intelligence
+2. Visitor Intelligence
+3. Commercial Intelligence
+4. Trade Impact
+5. Operational Intelligence
+6. Strategic Market Insight
+
+The platform must allow ZITF management and authorised users to capture, import, manage, analyse, visualise and report on business information across these six pillars.
+
+The system should provide an integrated executive dashboard that consolidates information from all six pillars and presents a comprehensive picture of ZITF's organisational performance, commercial performance, exhibition activity and wider trade impact.
+
+The platform must be designed to grow into a year-round business intelligence and information ecosystem.
+
+# 2. TECHNOLOGY STACK
+
+Use the following technology stack:
+
+### Frontend
+- React.js
+- TypeScript
+- Tailwind CSS
+- Modern component-based architecture.
+- Recharts for data visualisation.
+- Lucide React for icons.
+- Responsive design for desktop, tablet and mobile.
+
+### Backend and Database
+- Firebase Authentication for secure user authentication.
+- Cloud Firestore for structured application data.
+- Firebase Storage for documents, reports and supporting files.
+- Firebase Cloud Functions for backend business logic.
+- Firebase Security Rules for data access control.
+
+### Data Analytics
+- Recharts for interactive dashboards.
+- Advanced filtering and data aggregation.
+- CSV and Excel data import and export.
+- Python analytics integration can be introduced in a later phase.
+- Architecture should allow future integration with Power BI, BigQuery, Microsoft Fabric or other enterprise analytics platforms.
+
+### AI Integration
+Design the application to support future integration with:
+- Google Gemini API for natural-language business intelligence.
+- AI-assisted report generation.
+- Predictive analytics.
+- Sentiment analysis.
+- Intelligent business discovery.
+
+Do not expose API keys in frontend code. Use secure backend functions and environment variables.
+
+### Architecture
+Use a modular architecture with reusable components, service layers, data validation, error handling and clear separation between frontend and backend logic.
+
+# 3. USER INTERFACE AND DESIGN
+
+Create a professional corporate interface suitable for a national trade and exhibition organisation.
+
+The design should communicate:
+- Institutional credibility.
+- Business intelligence.
+- Innovation.
+- Trade and investment.
+- Technology and digital transformation.
+
+### Design direction
+- Modern enterprise dashboard.
+- Clean, spacious layout.
+- Professional navy blue, white and subtle gold accents.
+- Use restrained green accents for positive performance indicators.
+- Clear typography and strong visual hierarchy.
+- Interactive charts, tables and analytical cards.
+- Consistent spacing and reusable UI components.
+
+### Main application layout
+
+Create a persistent sidebar navigation with the following sections:
+
+1. Overview / Executive Dashboard
+2. Exhibitor Intelligence
+3. Visitor Intelligence
+4. Commercial Intelligence
+5. Trade Impact
+6. Operational Intelligence
+7. Strategic Market Insight
+8. Reports and Analytics
+9. Data Management
+10. User Management
+11. System Settings
+
+The main dashboard should have a top navigation bar containing:
+- ZITF logo placeholder.
+- Current exhibition/event selector.
+- Reporting period selector.
+- Notifications.
+- User profile and role.
+- Global search.
+
+Use the ZITF logo if supplied. Otherwise, use a clean placeholder that can be replaced through system settings.
+
+# 4. EXECUTIVE DASHBOARD
+
+The executive dashboard is the central landing page for senior management.
+
+It must provide a consolidated view of ZITF performance across all six pillars.
+
+### Key summary cards
+
+Display:
+
+- Total exhibitors.
+- Total visitors.
+- Total exhibition revenue.
+- Exhibition space occupancy.
+- Number of B2B meetings.
+- Qualified business enquiries.
+- Reported trade outcomes.
+- Visitor satisfaction score.
+- Returning exhibitor rate.
+- Operational uptime.
+
+Each card must display:
+- Current value.
+- Previous-period comparison where available.
+- Percentage change.
+- Positive or negative trend indicator.
+- A small trend chart where appropriate.
+
+### Dashboard visualisations
+
+Include:
+- Exhibitor participation by sector.
+- Visitor attendance trends.
+- Revenue by exhibition category.
+- Local versus international participation.
+- B2B meetings and enquiries.
+- Trade engagement outcomes.
+- Exhibition hall utilisation.
+- Revenue performance over time.
+- Visitor interests by category.
+
+### Filters
+
+Provide filters for:
+- Exhibition edition.
+- Year.
+- Reporting period.
+- Industry/sector.
+- Exhibitor category.
+- Visitor category.
+- Geographic region.
+- Local and international participation.
+
+All dashboard components must respond to the selected filters.
+
+### Executive insights
+
+Provide an insights section highlighting:
+- Significant performance changes.
+- Emerging trends.
+- Areas requiring management attention.
+- Commercial opportunities.
+- Operational challenges.
+
+Initially, insights can be generated using transparent rule-based analysis. Structure the application so that Gemini-powered analysis can be integrated later.
+
+# 5. MODULE ONE: EXHIBITOR INTELLIGENCE
+
+Purpose: Understand who exhibits, what they offer and how they perform.
+
+Create a complete exhibitor intelligence module.
+
+### Exhibitor database
+
+Each exhibitor record should include:
+
+- Company name.
+- Company registration/reference number.
+- Business description.
+- Industry and sector.
+- Country.
+- Province/city.
+- Contact person.
+- Email address.
+- Telephone number.
+- Website.
+- Products and services.
+- Exhibition edition.
+- Hall and stand number.
+- Stand size.
+- Exhibitor category.
+- Registration date.
+- Booking status.
+- Payment status.
+- Participation history.
+- Returning exhibitor status.
+
+### Features
+
+- Add, edit and view exhibitors.
+- Search and filter exhibitors.
+- Import exhibitors through CSV/Excel.
+- Export exhibitor records.
+- Group exhibitors by industry, sector and country.
+- Identify new and returning exhibitors.
+- Analyse exhibitor retention.
+- Analyse industry representation.
+- Analyse participation trends across exhibition editions.
+- View exhibitor profiles and participation history.
+
+### Analytics
+
+Create:
+- Exhibitors by industry.
+- Exhibitors by country.
+- Local versus international exhibitors.
+- New versus returning exhibitors.
+- Exhibitor retention trends.
+- Stand occupancy by exhibition category.
+- Participation growth by sector.
+
+### Key performance indicators
+
+- Total exhibitors.
+- Exhibitor retention rate.
+- Number of new exhibitors.
+- International exhibitor percentage.
+- Sector representation.
+- Stand occupancy.
+- Exhibitor satisfaction.
+
+# 6. MODULE TWO: VISITOR INTELLIGENCE
+
+Purpose: Understand who visits, what they are interested in and what value they seek.
+
+### Visitor database
+
+Include:
+
+- Visitor reference number.
+- Full name where lawfully collected.
+- Visitor category.
+- Country.
+- City/province.
+- Organisation.
+- Industry.
+- Email and contact information where consented.
+- Registration date.
+- Exhibition edition.
+- Attendance date.
+- Visitor interests.
+- Areas or sectors visited where such tracking is implemented.
+- Feedback and satisfaction rating.
+- Repeat visitor status.
+
+Support visitor categories such as:
+- Business visitors.
+- General public.
+- Students.
+- Government representatives.
+- International delegates.
+- Investors.
+- Buyers and procurement professionals.
+- Media representatives.
+
+### Features
+
+- Visitor registration data import.
+- Visitor profile management.
+- Attendance analytics.
+- Visitor segmentation.
+- Geographic analysis.
+- Visitor interest tracking.
+- Feedback management.
+- Repeat visitor analysis.
+- Visitor engagement reports.
+
+### Analytics
+
+Display:
+- Attendance by day.
+- Attendance by visitor category.
+- Local versus international visitors.
+- Visitor geographic distribution.
+- Visitor interests by sector.
+- Visitor satisfaction trends.
+- Repeat attendance.
+- Peak attendance periods.
+
+Do not assume that visitors' movement or interests are automatically tracked. Such data must only be included where an appropriate registration, survey, QR, access or other approved tracking mechanism exists.
+
+# 7. MODULE THREE: COMMERCIAL INTELLIGENCE
+
+Purpose: Understand ZITF's commercial performance and opportunities for revenue growth.
+
+### Commercial database
+
+Include:
+
+- Exhibitor bookings.
+- Exhibition space sales.
+- Sponsorship agreements.
+- Advertising sales.
+- Conference and event revenue.
+- Other commercial services.
+- Customer enquiries.
+- Sales opportunities.
+- Booking conversion.
+- Payments received.
+- Outstanding balances.
+- Revenue by exhibition edition.
+
+### Features
+
+- Record and manage commercial transactions.
+- Track bookings and sales.
+- Track sponsorship opportunities.
+- Monitor sales pipeline.
+- Track enquiries and conversion.
+- Import financial information.
+- Compare performance across exhibition editions.
+- Generate revenue reports.
+
+### Analytics
+
+Display:
+- Revenue by source.
+- Revenue by exhibition edition.
+- Revenue by sector.
+- Sponsorship performance.
+- Booking conversion rate.
+- Outstanding balances.
+- Revenue growth.
+- Revenue per exhibitor.
+- Revenue forecasting where sufficient historical data exists.
+
+### KPIs
+
+- Total revenue.
+- Revenue growth.
+- Exhibition space sales.
+- Sponsorship revenue.
+- Average revenue per exhibitor.
+- Enquiry-to-booking conversion.
+- Outstanding commercial balances.
+- Digital revenue contribution.
+
+Financial records must be access-controlled and must not be visible to unauthorised users.
+
+# 8. MODULE FOUR: TRADE IMPACT
+
+Purpose: Measure the business connections, commercial opportunities and economic outcomes facilitated by ZITF.
+
+This module is strategically important. ZITF should measure more than attendance and exhibition participation. It should understand what business opportunities emerge from its activities.
+
+### Trade engagement database
+
+Create records for:
+
+- B2B meetings.
+- Buyers and suppliers.
+- Business enquiries.
+- Commercial leads.
+- Quotations requested.
+- Partnerships initiated.
+- Distribution agreements.
+- Export opportunities.
+- Import opportunities.
+- Investment enquiries.
+- Reported transactions.
+- Follow-up engagements.
+
+### Each trade engagement should capture:
+
+- Engagement reference number.
+- Exhibition edition.
+- Date.
+- Buyer organisation.
+- Supplier/exhibitor organisation.
+- Industry/sector.
+- Type of opportunity.
+- Description.
+- Estimated opportunity value, if provided.
+- Engagement status.
+- Follow-up date.
+- Outcome.
+- Verification status.
+- Supporting documents where applicable.
+
+### Engagement status
+
+Use:
+- New.
+- Contact established.
+- Meeting scheduled.
+- Meeting completed.
+- Follow-up required.
+- Negotiation ongoing.
+- Opportunity converted.
+- Closed / unsuccessful.
+
+### Analytics
+
+Display:
+- Total B2B meetings.
+- Qualified business enquiries.
+- Business opportunities generated.
+- Follow-up completion rate.
+- Reported commercial value.
+- Export and import opportunities.
+- Partnerships initiated.
+- Deals reported as concluded.
+- Trade engagement by industry.
+
+Clearly distinguish:
+1. Opportunities facilitated.
+2. Transactions reported by participants.
+3. Independently verified transactions.
+
+Do not automatically classify every business enquiry or meeting as a completed trade transaction.
+
+# 9. MODULE FIVE: OPERATIONAL INTELLIGENCE
+
+Purpose: Use data to improve ZITF's operational efficiency, service delivery and resource utilisation.
+
+### Operational data categories
+
+Include:
+- Exhibition hall utilisation.
+- Stand occupancy.
+- Registration processing.
+- Visitor entry and exit.
+- Parking utilisation.
+- Queue management.
+- ICT infrastructure performance.
+- Internet and Wi-Fi availability.
+- Customer service response times.
+- Facilities and maintenance.
+- Security incidents.
+- Energy and resource utilisation.
+- Operational costs.
+
+### Features
+
+- Operational incident register.
+- Infrastructure performance records.
+- Maintenance and service records.
+- Hall and stand utilisation management.
+- ICT service performance tracking.
+- Operational activity reporting.
+
+### Analytics
+
+Display:
+- Hall utilisation percentages.
+- Registration processing times.
+- Peak visitor entry periods.
+- Network uptime.
+- Reported incidents.
+- Service response times.
+- Maintenance performance.
+- Energy consumption trends where data is available.
+
+Do not fabricate sensor-based, network or infrastructure metrics. These must come from connected systems or authorised manual data entry.
+
+# 10. MODULE SIX: STRATEGIC MARKET INSIGHT
+
+Purpose: Use ZITF's information ecosystem to understand markets, identify industry trends and discover business and investment opportunities.
+
+This module should transform ZITF's data into valuable market intelligence.
+
+### Data categories
+
+- Industry and sector participation.
+- New products and technologies.
+- Business and investment interests.
+- Local and international market representation.
+- Emerging sectors.
+- Trade opportunities.
+- Export potential.
+- SME participation.
+- Industry challenges.
+- External economic and trade indicators.
+
+### Features
+
+- Industry trend analysis.
+- Sector performance comparisons.
+- Market opportunity register.
+- Emerging technology register.
+- Investment opportunity register.
+- Industry report management.
+- Market insight publication.
+- Historical trend analysis.
+
+### Analytics
+
+Display:
+- Sector participation trends.
+- Emerging industry categories.
+- Growing and declining sectors.
+- Technology and innovation trends.
+- Local and international business interests.
+- Investment opportunity distribution.
+- SME participation trends.
+
+### Reports
+
+Allow authorised users to generate:
+- Zimbabwe Business and Trade Intelligence Reports.
+- Industry-specific reports.
+- Emerging Technology Reports.
+- Investment Opportunity Briefs.
+- Annual ZITF Business Intelligence Report.
+
+External economic and trade data should be clearly identified by source and reporting date.
+
+# 11. REPORTS AND ANALYTICS CENTRE
+
+Develop a central reporting module.
+
+Users should be able to generate reports for each of the six pillars and the overall executive dashboard.
+
+### Required functionality
+
+- Select reporting module.
+- Select exhibition edition.
+- Select reporting period.
+- Apply filters.
+- Preview report.
+- Export PDF.
+- Export Excel.
+- Export CSV.
+- Print report.
+
+Reports should include:
+- ZITF branding.
+- Report title.
+- Reporting period.
+- Generation date.
+- Summary of key findings.
+- KPI tables.
+- Charts.
+- Analytical observations.
+- Data-source notes.
+- Appropriate confidentiality classification.
+
+Provide a report history and allow authorised users to access previously generated reports.
+
+# 12. DATA MANAGEMENT CENTRE
+
+Develop a central data management module that allows authorised users to manage the platform's information.
+
+### Required functionality
+
+- CSV import.
+- Excel import.
+- Data validation.
+- Duplicate detection.
+- Data preview before importing.
+- Import error reporting.
+- Export records.
+- Data source management.
+- Data quality indicators.
+- Data update history.
+- Data integration settings.
+
+Create a standard import process:
+
+1. Upload file.
+2. Identify data type and destination module.
+3. Map uploaded columns to system fields.
+4. Validate required fields.
+5. Identify duplicate records.
+6. Display errors and warnings.
+7. Confirm import.
+8. Save valid records.
+9. Produce import summary.
+
+Support future API integrations with:
+- Exhibitor registration systems.
+- Visitor management systems.
+- Ticketing platforms.
+- CRM.
+- Finance and accounting systems.
+- Website analytics.
+- Digital marketplace.
+- Smart Stand Locator.
+- B2B matchmaking platforms.
+
+The application must work independently with manually entered and imported data before these integrations are available.
+
+# 13. AI BUSINESS INTELLIGENCE ASSISTANT
+
+Create an AI assistant interface named:
+
+**Ask ZITF Intelligence**
+
+Its purpose is to allow authorised users to ask questions about information contained in the platform using natural language.
+
+Example questions:
+
+- How many exhibitors participated in the latest exhibition?
+- Which sectors recorded the highest growth?
+- Compare local and international exhibitors over the last three years.
+- Which exhibition categories generated the highest revenue?
+- What were the most common visitor interests?
+- How many B2B meetings resulted in follow-up engagements?
+- Which business opportunities are still open?
+- What operational areas require management attention?
+- Summarise the commercial performance of the last exhibition.
+- Identify emerging industry trends from available ZITF data.
+
+### AI assistant requirements
+
+- Use only data that the logged-in user is authorised to access.
+- Respect the user's permissions.
+- Identify the reporting period and data sources used.
+- Show relevant figures and supporting records where permitted.
+- Distinguish actual figures from forecasts and estimates.
+- Clearly communicate when information is unavailable.
+- Never invent business statistics or transactions.
+- Do not expose confidential commercial or personal information.
+- Provide analytical explanations in simple business language.
+
+Integrate Gemini through secure Firebase Cloud Functions or another secure backend service. Never place API keys in browser code.
+
+If Gemini credentials are unavailable, provide a functional rule-based intelligence assistant with sample question suggestions and clearly label any sample responses.
+
+# 14. USER MANAGEMENT AND ACCESS CONTROL
+
+Create a secure role-based user management system.
+
+### Suggested user roles
+
+**1. Super Administrator**
+- Full system access.
+- Manage users and roles.
+- Manage system settings.
+- Configure integrations.
+- Access all modules.
+
+**2. Executive Management**
+- Access executive dashboard.
+- View strategic reports.
+- Access approved information across all six pillars.
+- Generate management reports.
+
+**3. Department Managers**
+- Access relevant departmental dashboards.
+- View and manage authorised records.
+- Generate departmental reports.
+
+**4. Data Analysts**
+- Access approved datasets.
+- Analyse and visualise data.
+- Generate analytical reports.
+
+**5. Data Entry Officers**
+- Capture and update authorised records.
+- Import data.
+- View relevant module information.
+
+**6. External Stakeholder / Viewer**
+- Access approved published reports and non-confidential business information only.
+
+Implement:
+- Firebase Authentication.
+- Role-based access control.
+- Secure Firestore rules.
+- Password reset.
+- User activation and deactivation.
+- Audit logs.
+- Login and activity history where appropriate.
+
+Enforce permissions on the backend, not just by hiding frontend navigation items.
+
+# 15. SYSTEM SETTINGS
+
+Create a settings area for:
+
+- Organisation profile.
+- ZITF logo.
+- Exhibition editions.
+- Reporting years.
+- Industry and sector classifications.
+- Business categories.
+- Visitor categories.
+- Geographic classifications.
+- KPI definitions.
+- User roles and permissions.
+- Data retention settings.
+- Report branding.
+- Integration settings.
+- AI configuration.
+- System audit logs.
+
+The system must support multiple exhibition editions and historical comparisons without overwriting previous exhibition records.
+
+# 16. DATA MODEL AND BUSINESS RULES
+
+Design a structured Firestore data model for:
+
+- users
+- roles
+- exhibitions
+- exhibitors
+- visitors
+- attendance
+- sectors
+- products_services
+- bookings
+- commercial_transactions
+- sponsorships
+- business_enquiries
+- b2b_meetings
+- trade_opportunities
+- trade_outcomes
+- operational_records
+- incidents
+- maintenance_records
+- market_insights
+- reports
+- data_sources
+- import_jobs
+- audit_logs
+- system_settings
+
+Use unique record identifiers and appropriate timestamps.
+
+Every relevant record should be associated with an exhibition edition where applicable.
+
+Use consistent sector classifications across the six pillars so that data can be compared and analysed.
+
+Build reusable services for filtering, aggregation and reporting.
+
+Use server-side aggregation or appropriate scalable approaches for large datasets. Do not depend on loading every Firestore record into the browser.
+
+# 17. DATA QUALITY AND RESPONSIBLE USE
+
+Implement data quality controls including:
+
+- Required field validation.
+- Standardised formats.
+- Duplicate detection.
+- Data completeness indicators.
+- Data-source attribution.
+- Data update timestamps.
+- Historical record preservation.
+
+Apply privacy and security principles consistent with applicable Zimbabwean data protection requirements.
+
+Collect only necessary personal information, define appropriate retention periods, protect sensitive information and use aggregated or anonymised information for external reporting where appropriate.
+
+Do not treat incomplete datasets as comprehensive. Every dashboard should indicate whether its information is actual, imported, estimated or sample data.
+
+# 18. DEMONSTRATION DATA
+
+Populate the application with clearly labelled synthetic demonstration data to make the platform visually functional during development and stakeholder presentations.
+
+Create realistic sample records across:
+- Multiple exhibition editions.
+- Local and international exhibitors.
+- Different industry sectors.
+- Different visitor categories.
+- Commercial transactions.
+- B2B meetings.
+- Business opportunities.
+- Operational records.
+- Market insights.
+
+Use realistic but fictional company names and figures.
+
+IMPORTANT:
+- Clearly label all synthetic data as DEMO DATA.
+- Do not present fictional statistics as actual ZITF performance.
+- Allow administrators to remove demonstration data before production deployment.
+- Keep the data structure ready for real ZITF records.
+
+# 19. FUNCTIONALITY AND QUALITY REQUIREMENTS
+
+The platform must not be a static mock-up.
+
+Implement working:
+- Navigation.
+- Authentication.
+- Role-based access.
+- Dashboard filters.
+- CRUD operations.
+- Search.
+- Pagination.
+- Data import and export.
+- Interactive charts.
+- Report generation.
+- User management.
+- Settings.
+- Data validation.
+- Notifications and error handling.
+
+Provide meaningful loading, empty, success and error states.
+
+Use realistic responsive layouts and ensure that all navigation items lead to working pages.
+
+Create reusable components to maintain consistency across the six modules.
+
+# 20. DEVELOPMENT APPROACH
+
+Build the application in logical stages.
+
+**Stage 1: Core application**
+- Project structure.
+- Authentication.
+- Main layout.
+- Navigation.
+- Firestore setup.
+- User roles.
+- Exhibition edition management.
+
+**Stage 2: Six BI modules**
+- Exhibitor Intelligence.
+- Visitor Intelligence.
+- Commercial Intelligence.
+- Trade Impact.
+- Operational Intelligence.
+- Strategic Market Insight.
+
+**Stage 3: Analytics and reporting**
+- Executive dashboard.
+- Interactive charts.
+- Filters.
+- Reports centre.
+- CSV and Excel imports/exports.
+
+**Stage 4: Administration and governance**
+- User management.
+- Data management.
+- Audit logs.
+- System settings.
+- Security rules.
+
+**Stage 5: AI and advanced analytics**
+- Ask ZITF Intelligence.
+- AI-assisted reporting.
+- Predictive analytics integration.
+- Intelligent business discovery.
+
+Prioritise a fully functional core platform before introducing advanced AI capabilities.
+
+Do not generate all modules as disconnected placeholder screens. Establish the shared data model and application architecture first, then implement the modules against that architecture.
+
+# 21. FINAL EXPECTED OUTPUT
+
+Deliver a complete, professional, responsive ZITF Business Intelligence web application that demonstrates how ZITF can transform its data into strategic business intelligence.
+
+The final application should provide:
+
+1. A modern executive dashboard.
+2. Six functional Business Intelligence modules.
+3. Centralised data management.
+4. Interactive analytics and visualisations.
+5. Report generation and export.
+6. Secure user and role management.
+7. AI-ready architecture.
+8. Exhibition edition comparisons.
+9. A scalable foundation for integration with other ZITF digital platforms.
+
+The overall experience should communicate that ZITF is evolving into a year-round business information and trade intelligence hub.
+
+**Final strategic message:**
+
+"ZITF must move beyond collecting information about exhibitions to generating intelligence that drives business. Through the ZITF Business Intelligence Platform, data becomes a strategic asset that connects businesses, informs decisions, unlocks opportunities and strengthens Zimbabwe's trade and investment ecosystem."
+
+**Build this as a production-oriented, modular application with a polished enterprise user experience, working functionality and a clear path to deployment.**
